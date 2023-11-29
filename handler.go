@@ -94,7 +94,7 @@ const (
 	SeverityKey       = "severity"
 	MessageKey        = "message"
 	TimeKey           = "time"
-	SourceLocationKey = "sourceLocation"
+	SourceLocationKey = "logging.googleapis.com/sourceLocation"
 )
 
 // Enabled implements [slog.Handler.Enabled].

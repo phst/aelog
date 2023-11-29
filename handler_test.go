@@ -176,7 +176,7 @@ func TestHandler_source(t *testing.T) {
 	want := []map[string]any{{
 		"severity": "INFO",
 		"message":  "message",
-		"sourceLocation": map[string]any{
+		"logging.googleapis.com/sourceLocation": map[string]any{
 			"file":     file,
 			"line":     strconv.Itoa(line),
 			"function": "github.com/phst/aelog_test.TestHandler_source",
