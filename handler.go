@@ -89,14 +89,12 @@ type Options struct {
 }
 
 // Constants for special keys in the output record.  See
-// https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry.
+// https://cloud.google.com/logging/docs/structured-logging#special-payload-fields.
 const (
-	TimestampKey      = "timestamp"
 	SeverityKey       = "severity"
 	MessageKey        = "message"
+	TimeKey           = "time"
 	SourceLocationKey = "sourceLocation"
-	TextPayloadKey    = "textPayload"
-	JSONPayloadKey    = "jsonPayload"
 )
 
 // Enabled implements [slog.Handler.Enabled].
@@ -106,35 +104,19 @@ func (h *Handler) Enabled(ctx context.Context, l slog.Level) bool {
 
 // Handle implements [slog.Handler.Handle].
 func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
-	// See https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry for a description
-	// of the fields that we set here.
+	// See
+	// https://cloud.google.com/logging/docs/structured-logging#special-payload-fields
+	// for a description of the fields that we set here.
 	//
 	// We try to optimize storage space by reusing the standard fields
 	// (time, level, message, program counter) as much as possible.  The
 	// slog.Record structure contains an optimization that stores a few
 	// attributes inline.  By not using attributes for the standard fields
 	// we can support that optimization a bit.  The replaceAttr function
-	// will convert the attributes to the corresponding LogEntry record
-	// fields.
-	//
-	// The LogEntry record supports either a plain text string
-	// (textPayload) or a JSON object (jsonPayload).  In the latter case
-	// the log message is contained in the message field of the payload.
-	// We have to use a JSON payload only if there are custom attributes.
-	// We store a text payload in the message and use an empty message as
-	// indication that no text payload should be added (either because
-	// there’s no message at all or because we have to use a JSON payload).
-	// Again, replaceAttr knows about this convention.
-	hasJSONPayload := len(h.attrs)+r.NumAttrs() > 0
-	var textPayload string
-	if !hasJSONPayload {
-		textPayload = r.Message
-	}
-	s := slog.NewRecord(r.Time.UTC(), r.Level, textPayload, r.PC)
+	// will convert the attributes to the corresponding log record fields.
+	s := slog.NewRecord(r.Time.UTC(), r.Level, r.Message, r.PC)
 	s.AddAttrs(httpAttrs(ctx, h.projectID)...)
-	if hasJSONPayload {
-		s.AddAttrs(jsonPayload(&r, h.attrs, h.groups))
-	}
+	s.AddAttrs(customAttrs(&r, h.attrs, h.groups)...)
 	return h.base.Handle(ctx, s)
 }
 
@@ -169,11 +151,11 @@ func replaceAttr(groups []string, a slog.Attr) slog.Attr {
 		return a
 	}
 	v := a.Value
-	// Translate standard attributes to the appropriate LogEntry fields and
-	// types.  We mostly leave unknown values intact.
+	// Translate standard attributes to the appropriate log record fields
+	// and types.  We mostly leave unknown values intact.
 	switch a.Key {
 	case slog.TimeKey:
-		a.Key = TimestampKey
+		a.Key = TimeKey
 		// Handler.Handle has already converted the time to UTC.
 	case slog.LevelKey:
 		a.Key = SeverityKey
@@ -181,12 +163,7 @@ func replaceAttr(groups []string, a slog.Attr) slog.Attr {
 			a.Value = slog.StringValue(severityForLevel(l))
 		}
 	case slog.MessageKey:
-		// Suppress an empty message because then we probably have a
-		// JSON payload.  See the comments in Handler.Handle.
-		if v.Kind() != slog.KindString || v.String() == "" {
-			return slog.Group("")
-		}
-		a.Key = TextPayloadKey
+		a.Key = MessageKey
 	case slog.SourceKey:
 		a.Key = SourceLocationKey
 		var s slog.Source

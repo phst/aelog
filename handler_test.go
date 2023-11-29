@@ -42,14 +42,14 @@ func Example() {
 
 func ExampleHandler() {
 	// Suppress timestamp noise.
-	removeTimestamp := func(_ []string, a slog.Attr) slog.Attr {
-		if a.Key == aelog.TimestampKey {
+	removeTime := func(_ []string, a slog.Attr) slog.Attr {
+		if a.Key == aelog.TimeKey {
 			return slog.Group("")
 		}
 		return a
 	}
 
-	log := slog.New(aelog.NewHandler(os.Stdout, &slog.HandlerOptions{ReplaceAttr: removeTimestamp}, nil))
+	log := slog.New(aelog.NewHandler(os.Stdout, &slog.HandlerOptions{ReplaceAttr: removeTime}, nil))
 
 	log.Info("info")
 	log.Warn("warning", "foo", "bar")
@@ -58,10 +58,10 @@ func ExampleHandler() {
 	log.WithGroup("group").Error("error", "foo", "bar")
 
 	// Output:
-	// {"severity":"INFO","textPayload":"info"}
-	// {"severity":"WARNING","jsonPayload":{"foo":"bar","message":"warning"}}
-	// {"severity":"INFO","jsonPayload":{"foo":"bar","attr":123,"message":"info"}}
-	// {"severity":"ERROR","jsonPayload":{"group":{"foo":"bar"},"message":"error"}}
+	// {"severity":"INFO","message":"info"}
+	// {"severity":"WARNING","message":"warning","foo":"bar"}
+	// {"severity":"INFO","message":"info","foo":"bar","attr":123}
+	// {"severity":"ERROR","message":"error","group":{"foo":"bar"}}
 }
 
 func TestHandler_level(t *testing.T) {
@@ -79,23 +79,23 @@ func TestHandler_level(t *testing.T) {
 	got := parseRecords(t, buf)
 	want := []map[string]any{
 		{
-			"severity":    "ERROR",
-			"textPayload": "warning + 1",
+			"severity": "ERROR",
+			"message":  "warning + 1",
 		},
 		{
-			"severity":    "WARNING",
-			"textPayload": "warning",
+			"severity": "WARNING",
+			"message":  "warning",
 		},
 		{
-			"severity":    "NOTICE",
-			"textPayload": "notice",
+			"severity": "NOTICE",
+			"message":  "notice",
 		},
 		{
-			"severity":    "INFO",
-			"textPayload": "info",
+			"severity": "INFO",
+			"message":  "info",
 		},
 	}
-	if diff := cmp.Diff(got, want, ignoreTimestamp); diff != "" {
+	if diff := cmp.Diff(got, want, ignoreTime); diff != "" {
 		t.Error("-got +want", diff)
 	}
 }
@@ -113,18 +113,16 @@ func TestHandler_attrs(t *testing.T) {
 	got := parseRecords(t, buf)
 	want := []map[string]any{{
 		"severity": "WARNING",
-		"jsonPayload": map[string]any{
-			"message": "test warning",
-			"attr":    123.0,
-			"group":   map[string]any{"inner": "value"},
-		},
+		"message":  "test warning",
+		"attr":     123.0,
+		"group":    map[string]any{"inner": "value"},
 	}}
-	if diff := cmp.Diff(got, want, ignoreTimestamp); diff != "" {
+	if diff := cmp.Diff(got, want, ignoreTime); diff != "" {
 		t.Error("-got +want", diff)
 	}
 }
 
-func TestHandler_timestamp(t *testing.T) {
+func TestHandler_time(t *testing.T) {
 	buf := new(bytes.Buffer)
 	log := slog.New(aelog.NewHandler(buf, nil, nil))
 
@@ -132,31 +130,31 @@ func TestHandler_timestamp(t *testing.T) {
 
 	got := parseRecords(t, buf)
 	want := []map[string]any{{
-		"timestamp":   time.Now(),
-		"severity":    "INFO",
-		"textPayload": "message",
+		"severity": "INFO",
+		"message":  "message",
+		"time":     time.Now(),
 	}}
 	if diff := cmp.Diff(
 		got, want,
 		cmpopts.EquateApproxTime(time.Minute),
-		cmp.FilterPath(isTimestamp, cmp.Transformer("", parseTimestamp)),
+		cmp.FilterPath(isTime, cmp.Transformer("", parseTime)),
 	); diff != "" {
 		t.Error("-got +want", diff)
 	}
 
-	ts, ok := got[0]["timestamp"].(string)
+	ts, ok := got[0]["time"].(string)
 	if !ok {
-		t.Error("timestamp is not a string")
+		t.Error("time is not a string")
 	}
 	tm, err := time.Parse(time.RFC3339Nano, ts)
 	if err != nil {
 		t.Error(err)
 	}
 	if tm.IsZero() {
-		t.Error("zero timestamp")
+		t.Error("zero time")
 	}
 	if tm.Location() != time.UTC {
-		t.Error("timestamp not in UTC")
+		t.Error("time not in UTC")
 	}
 }
 
@@ -177,14 +175,14 @@ func TestHandler_source(t *testing.T) {
 	got := parseRecords(t, buf)
 	want := []map[string]any{{
 		"severity": "INFO",
+		"message":  "message",
 		"sourceLocation": map[string]any{
 			"file":     file,
 			"line":     strconv.Itoa(line),
 			"function": "github.com/phst/aelog_test.TestHandler_source",
 		},
-		"textPayload": "message",
 	}}
-	if diff := cmp.Diff(got, want, ignoreTimestamp); diff != "" {
+	if diff := cmp.Diff(got, want, ignoreTime); diff != "" {
 		t.Error("-got +want", diff)
 	}
 }
@@ -198,13 +196,11 @@ func TestHandler_WithAttrs(t *testing.T) {
 	got := parseRecords(t, buf)
 	want := []map[string]any{{
 		"severity": "ERROR",
-		"jsonPayload": map[string]any{
-			"message": "test error",
-			"foo":     "bar",
-			"attr":    123.0,
-		},
+		"message":  "test error",
+		"foo":      "bar",
+		"attr":     123.0,
 	}}
-	if diff := cmp.Diff(got, want, ignoreTimestamp); diff != "" {
+	if diff := cmp.Diff(got, want, ignoreTime); diff != "" {
 		t.Error("-got +want", diff)
 	}
 }
@@ -218,14 +214,12 @@ func TestHandler_WithGroup(t *testing.T) {
 	got := parseRecords(t, buf)
 	want := []map[string]any{{
 		"severity": "ERROR",
-		"jsonPayload": map[string]any{
-			"message": "test error",
-			"outer": map[string]any{
-				"inner": map[string]any{"attr": 123.0},
-			},
+		"message":  "test error",
+		"outer": map[string]any{
+			"inner": map[string]any{"attr": 123.0},
 		},
 	}}
-	if diff := cmp.Diff(got, want, ignoreTimestamp); diff != "" {
+	if diff := cmp.Diff(got, want, ignoreTime); diff != "" {
 		t.Error("-got +want", diff)
 	}
 }
@@ -254,9 +248,9 @@ func ignoreFields(fields ...string) cmp.Option {
 	return cmpopts.IgnoreMapEntries(ignore)
 }
 
-var ignoreTimestamp = ignoreFields("timestamp")
+var ignoreTime = ignoreFields(aelog.TimeKey)
 
-func isTimestamp(p cmp.Path) bool {
+func isTime(p cmp.Path) bool {
 	if len(p) != 3 {
 		return false
 	}
@@ -265,10 +259,10 @@ func isTimestamp(p cmp.Path) bool {
 		return false
 	}
 	k := i.Key()
-	return k.Kind() == reflect.String && k.String() == "timestamp"
+	return k.Kind() == reflect.String && k.String() == aelog.TimeKey
 }
 
-func parseTimestamp(v any) time.Time {
+func parseTime(v any) time.Time {
 	if t, ok := v.(time.Time); ok {
 		return t
 	}

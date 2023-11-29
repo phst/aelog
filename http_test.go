@@ -29,10 +29,10 @@ import (
 )
 
 func ExampleMiddleware() {
-	// Suppress timestamp and other noise.
+	// Suppress time and other noise.
 	removeNoise := func(_ []string, a slog.Attr) slog.Attr {
 		switch a.Key {
-		case aelog.TimestampKey, "userAgent", "remoteIp", "protocol":
+		case aelog.TimeKey, "userAgent", "remoteIp", "protocol":
 			return slog.Group("")
 		default:
 			return a
@@ -67,8 +67,8 @@ func ExampleMiddleware() {
 	do(req)
 
 	// Output:
-	// {"severity":"INFO","textPayload":"hi","httpRequest":{"requestMethod":"GET","requestUrl":"/"}}
-	// {"severity":"INFO","textPayload":"hi","httpRequest":{"requestMethod":"GET","requestUrl":"/"},"trace":"projects/test/traces/abc","spanId":"123"}
+	// {"severity":"INFO","message":"hi","httpRequest":{"requestMethod":"GET","requestUrl":"/"}}
+	// {"severity":"INFO","message":"hi","httpRequest":{"requestMethod":"GET","requestUrl":"/"},"logging.googleapis.com/trace":"projects/test/traces/abc","logging.googleapis.com/spanId":"123"}
 }
 
 func TestMiddleware(t *testing.T) {
@@ -107,19 +107,19 @@ func TestMiddleware(t *testing.T) {
 
 	got := parseRecords(t, buf)
 	want := []map[string]any{{
+		"message": "received HTTP request",
 		"httpRequest": map[string]any{
 			"requestMethod": "GET",
 			"requestUrl":    "/foo",
 			"userAgent":     "Go-http-client/1.1",
 			"protocol":      "HTTP/1.1",
 		},
-		"trace":       "projects/test-project/traces/123abc",
-		"spanId":      "456",
-		"textPayload": "received HTTP request",
+		"logging.googleapis.com/trace":  "projects/test-project/traces/123abc",
+		"logging.googleapis.com/spanId": "456",
 	}}
 	if diff := cmp.Diff(
 		got, want,
-		ignoreFields("remoteIp", "severity", "timestamp", "sourceLocation"),
+		ignoreFields("remoteIp", aelog.SeverityKey, aelog.TimeKey, aelog.SourceLocationKey),
 	); diff != "" {
 		t.Error("-got +want", diff)
 	}

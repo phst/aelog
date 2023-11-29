@@ -52,7 +52,11 @@ func httpAttrs(ctx context.Context, projectID string) []slog.Attr {
 	)
 	attrs := []slog.Attr{attr("httpRequest", val)}
 	trace, span := traceContext(req.Header, projectID)
-	return append(attrs, optionalStrings("trace", trace, "spanId", span)...)
+	traceAttrs := optionalStrings(
+		"logging.googleapis.com/trace", trace,
+		"logging.googleapis.com/spanId", span,
+	)
+	return append(attrs, traceAttrs...)
 }
 
 func traceContext(h http.Header, projectID string) (string, string) {

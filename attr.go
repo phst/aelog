@@ -43,8 +43,12 @@ func groupValue(args ...string) slog.Value {
 	return slog.GroupValue(optionalStrings(args...)...)
 }
 
-func jsonPayload(r *slog.Record, attrs []slog.Attr, groups []string) slog.Attr {
-	attrs = slices.Grow(slices.Clone(attrs), r.NumAttrs()+1)
+func customAttrs(r *slog.Record, attrs []slog.Attr, groups []string) []slog.Attr {
+	n := r.NumAttrs()
+	if len(attrs)+n == 0 {
+		return nil
+	}
+	attrs = slices.Grow(slices.Clone(attrs), n)
 	r.Attrs(func(a slog.Attr) bool {
 		if a.Key != MessageKey {
 			attrs = append(attrs, a)
@@ -54,8 +58,7 @@ func jsonPayload(r *slog.Record, attrs []slog.Attr, groups []string) slog.Attr {
 	for _, g := range groups {
 		attrs = []slog.Attr{attr(g, slog.GroupValue(attrs...))}
 	}
-	attrs = append(attrs, slog.String(MessageKey, r.Message))
-	return attr(JSONPayloadKey, slog.GroupValue(attrs...))
+	return attrs
 }
 
 func attr(key string, value slog.Value) slog.Attr {
