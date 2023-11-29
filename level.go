@@ -18,11 +18,11 @@ import "log/slog"
 
 // Additional logging levels corresponding to the severities documented at
 // https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#logseverity.
-const LevelNotice = (LevelInfo + LevelWarn) / 2
 const (
 	LevelCritical = LevelError + 4*(iota+1)
 	LevelAlert
 	LevelEmergency
+	LevelNotice = (LevelInfo + LevelWarn) / 2
 )
 
 // Aliases for the standard levels, just for symmetry reasons.
