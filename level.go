@@ -16,8 +16,9 @@ package aelog
 
 import "log/slog"
 
-// Additional logging levels corresponding to the severities documented at
-// https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#logseverity.
+// Additional logging levels corresponding to [Cloud Logging severities].
+//
+// [Cloud Logging severities]: https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#logseverity
 const (
 	LevelCritical = LevelError + 4*(iota+1)
 	LevelAlert

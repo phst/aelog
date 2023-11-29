@@ -88,8 +88,9 @@ type Options struct {
 	ProjectID string
 }
 
-// Constants for special keys in the output record.  See
-// https://cloud.google.com/logging/docs/structured-logging#special-payload-fields.
+// Constants for [special keys] in the output record.
+//
+// [special keys]: https://cloud.google.com/logging/docs/structured-logging#special-payload-fields.
 const (
 	SeverityKey       = "severity"
 	MessageKey        = "message"

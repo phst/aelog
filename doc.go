@@ -28,12 +28,10 @@
 // will be formatted as JSON in a structure that the Google Cloud Logging
 // machinery can parse.
 //
-// The handler maps logging levels to matching severities documented at
-// https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#logseverity.
-// Any unnamed level maps to the next-higher severity; for example, any level
-// in the half-open interval ([slog.LevelWarn], [slog.LevelError]] maps to
-// ERROR.  The package also defines a few additional named levels such as
-// [LevelNotice].
+// The handler maps logging levels to matching [severities].  Any unnamed level
+// maps to the next-higher severity; for example, any level in the half-open
+// interval ([slog.LevelWarn], [slog.LevelError]] maps to ERROR.  The package
+// also defines a few additional named levels such as [LevelNotice].
 //
 // # HTTP middleware
 //
@@ -43,4 +41,6 @@
 // logging functions such as [slog.InfoContext] with a context returned by
 // [http.Request.Context] (or a derived context).  See the example for the
 // [Middleware] function for a worked-out example.
+//
+// [severities]: https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#logseverity
 package aelog
