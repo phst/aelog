@@ -77,4 +77,4 @@ func traceContext(h http.Header, projectID string) (string, string) {
 // See the comments for context.Context.Value.
 type contextKey int
 
-var httpRequestKey contextKey = 1
+const httpRequestKey contextKey = 1
