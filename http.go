@@ -42,14 +42,14 @@ func httpAttrs(ctx context.Context, projectID string) []slog.Attr {
 		return nil
 	}
 	// https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#HttpRequest
-	val := groupValue(
+	val := slog.GroupValue(optionalStrings(
 		"requestMethod", req.Method,
 		"requestUrl", req.URL.String(),
 		"userAgent", req.UserAgent(),
 		"remoteIp", req.RemoteAddr,
 		"referer", req.Referer(),
 		"protocol", req.Proto,
-	)
+	)...)
 	attrs := []slog.Attr{{Key: "httpRequest", Value: val}}
 	trace, span := traceContext(req.Header, projectID)
 	traceAttrs := optionalStrings(

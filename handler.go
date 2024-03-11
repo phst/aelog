@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2023, 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -181,11 +181,11 @@ func replaceAttr(groups []string, a slog.Attr) slog.Attr {
 			// spurious line field to an otherwise-empty group.
 			line = strconv.Itoa(n)
 		}
-		a.Value = groupValue(
+		a.Value = slog.GroupValue(optionalStrings(
 			"file", s.File,
 			"line", line,
 			"function", s.Function,
-		)
+		)...)
 	}
 	return a
 }

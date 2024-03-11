@@ -39,10 +39,6 @@ func optionalStrings(args ...string) []slog.Attr {
 	return r
 }
 
-func groupValue(args ...string) slog.Value {
-	return slog.GroupValue(optionalStrings(args...)...)
-}
-
 func customAttrs(r *slog.Record, attrs []slog.Attr, groups []string) []slog.Attr {
 	n := r.NumAttrs()
 	if len(attrs)+n == 0 {
