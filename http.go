@@ -33,18 +33,24 @@ type middleware struct{ h http.Handler }
 
 func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#HttpRequest
-	val := slog.GroupValue(optionalStrings(
-		"requestMethod", r.Method,
-		"requestUrl", r.URL.String(),
-		"userAgent", r.UserAgent(),
-		"remoteIp", r.RemoteAddr,
-		"referer", r.Referer(),
-		"protocol", r.Proto,
-	)...)
+	attrs := []slog.Attr{
+		slog.String("requestMethod", r.Method),
+		slog.String("requestUrl", r.URL.String()),
+		slog.String("protocol", r.Proto),
+	}
+	if r.RemoteAddr != "" {
+		attrs = append(attrs, slog.String("remoteIp", r.RemoteAddr))
+	}
+	if ua := r.UserAgent(); ua != "" {
+		attrs = append(attrs, slog.String("userAgent", ua))
+	}
+	if ref := r.Referer(); ref != "" {
+		attrs = append(attrs, slog.String("referer", ref))
+	}
 	// https://cloud.google.com/trace/docs/setup#force-trace
 	s, _, _ := strings.Cut(r.Header.Get("X-Cloud-Trace-Context"), ";")
 	trace, span, _ := strings.Cut(s, "/")
-	ctx := context.WithValue(r.Context(), httpInfoKey, &httpInfo{val, trace, span})
+	ctx := context.WithValue(r.Context(), httpInfoKey, &httpInfo{slog.GroupValue(attrs...), trace, span})
 	m.h.ServeHTTP(w, r.WithContext(ctx))
 }
 
@@ -57,11 +63,11 @@ func httpAttrs(ctx context.Context, projectID string) []slog.Attr {
 	// If we don’t have a project ID, we couldn’t format the trace in the
 	// required format, so bail out.
 	if projectID != "" && i.trace != "" {
-		traceAttrs := optionalStrings(
-			"logging.googleapis.com/trace", fmt.Sprintf("projects/%s/traces/%s", projectID, i.trace),
-			"logging.googleapis.com/spanId", i.span,
-		)
-		attrs = append(attrs, traceAttrs...)
+		traceID := fmt.Sprintf("projects/%s/traces/%s", projectID, i.trace)
+		attrs = append(attrs, slog.String("logging.googleapis.com/trace", traceID))
+		if i.span != "" {
+			attrs = append(attrs, slog.String("logging.googleapis.com/spanId", i.span))
+		}
 	}
 	return attrs
 }

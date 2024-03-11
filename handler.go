@@ -174,18 +174,20 @@ func replaceAttr(groups []string, a slog.Attr) slog.Attr {
 		if p, ok := v.Any().(*slog.Source); ok && p != nil {
 			s = *p
 		}
-		var line string
-		if n := s.Line; n > 0 {
-			// Use an empty string if we don’t have any line
-			// information.  This ensures that we don’t add a
-			// spurious line field to an otherwise-empty group.
-			line = strconv.Itoa(n)
+		attrs := make([]slog.Attr, 0, 3)
+		if s.File != "" {
+			attrs = append(attrs, slog.String("file", s.File))
 		}
-		a.Value = slog.GroupValue(optionalStrings(
-			"file", s.File,
-			"line", line,
-			"function", s.Function,
-		)...)
+		if n := s.Line; n > 0 {
+			// Don’t add a spurious line field to an
+			// otherwise-empty group if we don’t have any line
+			// information.
+			attrs = append(attrs, slog.String("line", strconv.Itoa(n)))
+		}
+		if s.Function != "" {
+			attrs = append(attrs, slog.String("function", s.Function))
+		}
+		a.Value = slog.GroupValue(attrs...)
 	}
 	return a
 }

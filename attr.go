@@ -19,26 +19,6 @@ import (
 	"slices"
 )
 
-func optionalStrings(args ...string) []slog.Attr {
-	n := len(args)
-	if n == 0 {
-		return nil
-	}
-	if n%2 != 0 {
-		panic("odd number of arguments")
-	}
-	r := make([]slog.Attr, 0, n/2)
-	for len(args) > 0 {
-		k := args[0]
-		v := args[1]
-		if v != "" {
-			r = append(r, slog.String(k, v))
-		}
-		args = args[2:]
-	}
-	return r
-}
-
 func customAttrs(r *slog.Record, attrs []slog.Attr, groups []string) []slog.Attr {
 	n := r.NumAttrs()
 	if len(attrs)+n == 0 {
