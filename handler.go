@@ -117,26 +117,20 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	// will convert the attributes to the corresponding log record fields.
 	s := slog.NewRecord(r.Time.UTC(), r.Level, r.Message, r.PC)
 	s.AddAttrs(httpAttrs(ctx, h.projectID)...)
-	s.AddAttrs(customAttrs(&r, h.attrs, h.groups)...)
-	return h.base.Handle(ctx, s)
-}
-
-func customAttrs(r *slog.Record, attrs []slog.Attr, groups []string) []slog.Attr {
-	n := r.NumAttrs()
-	if len(attrs)+n == 0 {
-		return nil
-	}
-	attrs = slices.Grow(slices.Clone(attrs), n)
-	r.Attrs(func(a slog.Attr) bool {
-		if a.Key != MessageKey {
-			attrs = append(attrs, a)
+	if n := r.NumAttrs(); len(h.attrs)+n > 0 {
+		attrs := slices.Grow(slices.Clone(h.attrs), n)
+		r.Attrs(func(a slog.Attr) bool {
+			if a.Key != MessageKey {
+				attrs = append(attrs, a)
+			}
+			return true
+		})
+		for _, g := range h.groups {
+			attrs = []slog.Attr{{Key: g, Value: slog.GroupValue(attrs...)}}
 		}
-		return true
-	})
-	for _, g := range groups {
-		attrs = []slog.Attr{{Key: g, Value: slog.GroupValue(attrs...)}}
+		s.AddAttrs(attrs...)
 	}
-	return attrs
+	return h.base.Handle(ctx, s)
 }
 
 // WithAttrs implements [slog.Handler.WithAttrs].
