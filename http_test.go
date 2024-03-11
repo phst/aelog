@@ -51,16 +51,16 @@ func ExampleMiddleware() {
 	srv := httptest.NewServer(aelog.Middleware(http.HandlerFunc(handler)))
 	defer srv.Close()
 
-	req, err := http.NewRequest(http.MethodGet, srv.URL, nil)
-	if err != nil {
-		panic(err)
-	}
-	resp, err := srv.Client().Do(req)
+	resp, err := srv.Client().Get(srv.URL)
 	if err != nil {
 		panic(err)
 	}
 	resp.Body.Close()
 
+	req, err := http.NewRequest(http.MethodGet, srv.URL, nil)
+	if err != nil {
+		panic(err)
+	}
 	// https://cloud.google.com/trace/docs/setup#force-trace
 	req.Header.Add("X-Cloud-Trace-Context", "abc/123;o=1")
 	resp, err = srv.Client().Do(req)
