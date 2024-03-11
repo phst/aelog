@@ -117,8 +117,8 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	// will convert the attributes to the corresponding log record fields.
 	s := slog.NewRecord(r.Time.UTC(), r.Level, r.Message, r.PC)
 	s.AddAttrs(httpAttrs(ctx, h.projectID)...)
-	if n := r.NumAttrs(); len(h.attrs)+n > 0 {
-		attrs := slices.Grow(slices.Clone(h.attrs), n)
+	if n := len(h.attrs) + r.NumAttrs(); n > 0 {
+		attrs := append(make([]slog.Attr, 0, n), h.attrs...)
 		r.Attrs(func(a slog.Attr) bool {
 			if a.Key != MessageKey {
 				attrs = append(attrs, a)
