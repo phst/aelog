@@ -57,7 +57,6 @@ func ExampleHandler() {
 	log.Debug("this message won’t appear")
 	log.With("foo", "bar").Info("info", "attr", 123)
 	log.WithGroup("group").Error("error", "foo", "bar")
-
 	// Output:
 	// {"severity":"INFO","message":"info"}
 	// {"severity":"WARNING","message":"warning","foo":"bar"}

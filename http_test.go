@@ -68,7 +68,6 @@ func ExampleMiddleware() {
 		panic(err)
 	}
 	resp.Body.Close()
-
 	// Output:
 	// {"severity":"INFO","message":"hi","httpRequest":{"requestMethod":"GET","requestUrl":"/"}}
 	// {"severity":"INFO","message":"hi","httpRequest":{"requestMethod":"GET","requestUrl":"/"},"logging.googleapis.com/trace":"projects/test/traces/abc","logging.googleapis.com/spanId":"123"}
