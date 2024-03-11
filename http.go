@@ -41,7 +41,9 @@ func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		"referer", r.Referer(),
 		"protocol", r.Proto,
 	)...)
-	trace, span := traceContext(r.Header)
+	// https://cloud.google.com/trace/docs/setup#force-trace
+	s, _, _ := strings.Cut(r.Header.Get("X-Cloud-Trace-Context"), ";")
+	trace, span, _ := strings.Cut(s, "/")
 	ctx := context.WithValue(r.Context(), httpInfoKey, &httpInfo{val, trace, span})
 	m.h.ServeHTTP(w, r.WithContext(ctx))
 }
@@ -52,26 +54,16 @@ func httpAttrs(ctx context.Context, projectID string) []slog.Attr {
 		return nil
 	}
 	attrs := []slog.Attr{{Key: "httpRequest", Value: i.req}}
-	return append(attrs, traceAttrs(projectID, i.trace, i.span)...)
-}
-
-func traceContext(h http.Header) (string, string) {
-	// https://cloud.google.com/trace/docs/setup#force-trace
-	s, _, _ := strings.Cut(h.Get("X-Cloud-Trace-Context"), ";")
-	trace, span, _ := strings.Cut(s, "/")
-	return trace, span
-}
-
-func traceAttrs(projectID, trace, span string) []slog.Attr {
-	if projectID == "" || trace == "" {
-		// If we don’t have a project ID, we couldn’t format the trace
-		// in the required format, so bail out.
-		return nil
+	// If we don’t have a project ID, we couldn’t format the trace in the
+	// required format, so bail out.
+	if projectID != "" && i.trace != "" {
+		traceAttrs := optionalStrings(
+			"logging.googleapis.com/trace", fmt.Sprintf("projects/%s/traces/%s", projectID, i.trace),
+			"logging.googleapis.com/spanId", i.span,
+		)
+		attrs = append(attrs, traceAttrs...)
 	}
-	return optionalStrings(
-		"logging.googleapis.com/trace", fmt.Sprintf("projects/%s/traces/%s", projectID, trace),
-		"logging.googleapis.com/spanId", span,
-	)
+	return attrs
 }
 
 type httpInfo struct {
