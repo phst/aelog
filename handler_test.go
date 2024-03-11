@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2023, 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import (
 	"slices"
 	"strconv"
 	"testing"
+	"testing/slogtest"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -221,6 +222,14 @@ func TestHandler_WithGroup(t *testing.T) {
 	}}
 	if diff := cmp.Diff(got, want, ignoreTime); diff != "" {
 		t.Error("-got +want", diff)
+	}
+}
+
+func TestHandler_generic(t *testing.T) {
+	buf := new(bytes.Buffer)
+	err := slogtest.TestHandler(aelog.NewHandler(buf, nil, nil), func() []map[string]any { return parseRecords(t, buf) })
+	if err != nil {
+		t.Error(err)
 	}
 }
 
