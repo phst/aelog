@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2023, 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -56,11 +56,7 @@ func customAttrs(r *slog.Record, attrs []slog.Attr, groups []string) []slog.Attr
 		return true
 	})
 	for _, g := range groups {
-		attrs = []slog.Attr{attr(g, slog.GroupValue(attrs...))}
+		attrs = []slog.Attr{{Key: g, Value: slog.GroupValue(attrs...)}}
 	}
 	return attrs
-}
-
-func attr(key string, value slog.Value) slog.Attr {
-	return slog.Attr{Key: key, Value: value}
 }

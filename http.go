@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2023, 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@ func httpAttrs(ctx context.Context, projectID string) []slog.Attr {
 		"referer", req.Referer(),
 		"protocol", req.Proto,
 	)
-	attrs := []slog.Attr{attr("httpRequest", val)}
+	attrs := []slog.Attr{{Key: "httpRequest", Value: val}}
 	trace, span := traceContext(req.Header, projectID)
 	traceAttrs := optionalStrings(
 		"logging.googleapis.com/trace", trace,
