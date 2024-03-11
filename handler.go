@@ -121,6 +121,24 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	return h.base.Handle(ctx, s)
 }
 
+func customAttrs(r *slog.Record, attrs []slog.Attr, groups []string) []slog.Attr {
+	n := r.NumAttrs()
+	if len(attrs)+n == 0 {
+		return nil
+	}
+	attrs = slices.Grow(slices.Clone(attrs), n)
+	r.Attrs(func(a slog.Attr) bool {
+		if a.Key != MessageKey {
+			attrs = append(attrs, a)
+		}
+		return true
+	})
+	for _, g := range groups {
+		attrs = []slog.Attr{{Key: g, Value: slog.GroupValue(attrs...)}}
+	}
+	return attrs
+}
+
 // WithAttrs implements [slog.Handler.WithAttrs].
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	r := h.clone()
