@@ -32,49 +32,54 @@ func Middleware(h http.Handler) http.Handler {
 type middleware struct{ h http.Handler }
 
 func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := context.WithValue(r.Context(), httpRequestKey, r)
+	// https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#HttpRequest
+	val := slog.GroupValue(optionalStrings(
+		"requestMethod", r.Method,
+		"requestUrl", r.URL.String(),
+		"userAgent", r.UserAgent(),
+		"remoteIp", r.RemoteAddr,
+		"referer", r.Referer(),
+		"protocol", r.Proto,
+	)...)
+	trace, span := traceContext(r.Header)
+	ctx := context.WithValue(r.Context(), httpInfoKey, &httpInfo{val, trace, span})
 	m.h.ServeHTTP(w, r.WithContext(ctx))
 }
 
 func httpAttrs(ctx context.Context, projectID string) []slog.Attr {
-	req, ok := ctx.Value(httpRequestKey).(*http.Request)
-	if !ok || req == nil {
+	i, ok := ctx.Value(httpInfoKey).(*httpInfo)
+	if !ok || i == nil {
 		return nil
 	}
-	// https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#HttpRequest
-	val := slog.GroupValue(optionalStrings(
-		"requestMethod", req.Method,
-		"requestUrl", req.URL.String(),
-		"userAgent", req.UserAgent(),
-		"remoteIp", req.RemoteAddr,
-		"referer", req.Referer(),
-		"protocol", req.Proto,
-	)...)
-	attrs := []slog.Attr{{Key: "httpRequest", Value: val}}
-	trace, span := traceContext(req.Header, projectID)
-	traceAttrs := optionalStrings(
-		"logging.googleapis.com/trace", trace,
-		"logging.googleapis.com/spanId", span,
-	)
-	return append(attrs, traceAttrs...)
+	attrs := []slog.Attr{{Key: "httpRequest", Value: i.req}}
+	return append(attrs, traceAttrs(projectID, i.trace, i.span)...)
 }
 
-func traceContext(h http.Header, projectID string) (string, string) {
-	if projectID == "" {
-		// If we don’t have a project ID, we couldn’t format the trace
-		// in the required format, so bail out.
-		return "", ""
-	}
+func traceContext(h http.Header) (string, string) {
 	// https://cloud.google.com/trace/docs/setup#force-trace
 	s, _, _ := strings.Cut(h.Get("X-Cloud-Trace-Context"), ";")
 	trace, span, _ := strings.Cut(s, "/")
-	if trace == "" {
-		return "", ""
+	return trace, span
+}
+
+func traceAttrs(projectID, trace, span string) []slog.Attr {
+	if projectID == "" || trace == "" {
+		// If we don’t have a project ID, we couldn’t format the trace
+		// in the required format, so bail out.
+		return nil
 	}
-	return fmt.Sprintf("projects/%s/traces/%s", projectID, trace), span
+	return optionalStrings(
+		"logging.googleapis.com/trace", fmt.Sprintf("projects/%s/traces/%s", projectID, trace),
+		"logging.googleapis.com/spanId", span,
+	)
+}
+
+type httpInfo struct {
+	req         slog.Value
+	trace, span string
 }
 
 // See the comments for context.Context.Value.
 type contextKey int
 
-const httpRequestKey contextKey = 1
+const httpInfoKey contextKey = 1
