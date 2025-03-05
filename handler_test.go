@@ -239,7 +239,18 @@ func TestHandler_generic(t *testing.T) {
 		if n := len(recs); n != 1 {
 			t.Fatalf("output buffer contained %d records, expected exactly one", n)
 		}
-		return recs[0]
+		r := recs[0]
+		for _, k := range []struct{ from, to string }{
+			{aelog.SeverityKey, slog.LevelKey},
+			{aelog.MessageKey, slog.MessageKey},
+			{aelog.TimeKey, slog.TimeKey},
+		} {
+			if v, ok := r[k.from]; ok && k.from != k.to {
+				delete(r, k.from)
+				r[k.to] = v
+			}
+		}
+		return r
 	}
 	slogtest.Run(t, newHandler, result)
 }
