@@ -1,5 +1,5 @@
 module github.com/phst/aelog
 
-go 1.21
+go 1.24.1
 
 require github.com/google/go-cmp v0.7.0
