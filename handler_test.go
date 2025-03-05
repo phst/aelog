@@ -225,11 +225,23 @@ func TestHandler_WithGroup(t *testing.T) {
 }
 
 func TestHandler_generic(t *testing.T) {
-	buf := new(bytes.Buffer)
-	err := slogtest.TestHandler(aelog.NewHandler(buf, nil, nil), func() []map[string]any { return parseRecords(t, buf) })
-	if err != nil {
-		t.Error(err)
+	bufs := make(map[*testing.T]*bytes.Buffer)
+	newHandler := func(t *testing.T) slog.Handler {
+		buf := new(bytes.Buffer)
+		if _, dup := bufs[t]; dup {
+			t.Fatal("duplicate test case in buffer map")
+		}
+		bufs[t] = buf
+		return aelog.NewHandler(buf, nil, nil)
 	}
+	result := func(t *testing.T) map[string]any {
+		recs := parseRecords(t, bufs[t])
+		if n := len(recs); n != 1 {
+			t.Fatalf("output buffer contained %d records, expected exactly one", n)
+		}
+		return recs[0]
+	}
+	slogtest.Run(t, newHandler, result)
 }
 
 func parseRecords(t *testing.T, r io.Reader) (recs []map[string]any) {
