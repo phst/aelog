@@ -1,4 +1,4 @@
-// Copyright 2023, 2024 Google LLC
+// Copyright 2023, 2024, 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"slices"
 	"strconv"
 )
 
@@ -72,12 +71,15 @@ type Handler struct {
 	// Empty only if we don’t know the project ID.
 	projectID string
 
+	// Parent of this handler, nil for the outermost Handler.
+	parent *Handler
+
 	// Attributes added by WithAttrs.
 	attrs []slog.Attr
 
-	// Names of groups added by Handler.WithGroup, from innermost to
-	// outermost.
-	groups []string
+	// Name of group added by Handler.WithGroup, empty if this Handler
+	// doesn’t specify a new group.
+	group string
 }
 
 // Options contains additional options for configuring a [Handler].  It can be
@@ -117,27 +119,38 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	// will convert the attributes to the corresponding log record fields.
 	s := slog.NewRecord(r.Time.UTC(), r.Level, r.Message, r.PC)
 	s.AddAttrs(httpAttrs(ctx, h.projectID)...)
+	var attrs []slog.Attr
 	if n := len(h.attrs) + r.NumAttrs(); n > 0 {
-		attrs := append(make([]slog.Attr, 0, n), h.attrs...)
+		attrs = append(make([]slog.Attr, 0, n), h.attrs...)
 		r.Attrs(func(a slog.Attr) bool {
 			if a.Key != MessageKey {
 				attrs = append(attrs, a)
 			}
 			return true
 		})
-		for _, g := range h.groups {
+		if g := h.group; g != "" {
 			attrs = []slog.Attr{{Key: g, Value: slog.GroupValue(attrs...)}}
 		}
-		s.AddAttrs(attrs...)
 	}
+	for p := h.parent; p != nil; p = p.parent {
+		if n := len(p.attrs); n > 0 {
+			attrs = append(attrs, p.attrs...)
+		}
+		if g := p.group; g != "" {
+			attrs = []slog.Attr{{Key: g, Value: slog.GroupValue(attrs...)}}
+		}
+	}
+	s.AddAttrs(attrs...)
 	return h.base.Handle(ctx, s)
 }
 
 // WithAttrs implements [slog.Handler.WithAttrs].
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	r := h.clone()
-	r.attrs = append(r.attrs, attrs...)
-	return r
+	r := *h
+	r.parent = h
+	r.attrs = attrs
+	r.group = ""
+	return &r
 }
 
 // WithGroup implements [slog.Handler.WithGroup].
@@ -145,15 +158,10 @@ func (h *Handler) WithGroup(name string) slog.Handler {
 	if name == "" {
 		return h
 	}
-	r := h.clone()
-	r.groups = append([]string{name}, r.groups...)
-	return r
-}
-
-func (h *Handler) clone() *Handler {
 	r := *h
-	r.attrs = slices.Clone(h.attrs)
-	r.groups = slices.Clone(h.groups)
+	r.parent = h
+	r.attrs = nil
+	r.group = name
 	return &r
 }
 
