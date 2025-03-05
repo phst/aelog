@@ -240,6 +240,7 @@ func TestHandler_generic(t *testing.T) {
 			t.Fatalf("output buffer contained %d records, expected exactly one", n)
 		}
 		r := recs[0]
+		t.Log("Got record", r)
 		for _, k := range []struct{ from, to string }{
 			{aelog.SeverityKey, slog.LevelKey},
 			{aelog.MessageKey, slog.MessageKey},
